@@ -27,8 +27,8 @@ def index():
 	order_ids = set()
 	unique_customers_set = set() # Total number of customers that made an order that day
 	total_discount = 0
-	number_of_discounts = 0
-	total_amount = 0 # Total amount ordered that day (is it per item?)
+	number_of_discounts = 0 # same as total number of items ordered
+	total_discount_rate = 0 # Total amount ordered that day (is it per item?)
 	# Get all the orders placed that day
 	orders_csv = pd.read_csv('data/orders.csv')
 	for row in range(orders_csv.shape[0]): 
@@ -41,9 +41,10 @@ def index():
 	for row in range(order_lines_csv.shape[0]):
 		if order_lines_csv.iloc[row]['order_id'] in order_ids:
 			total_num_items += 1
-			total_discount += float(order_lines_csv.iloc[row]['discounted_amount'])
+			total_discount += float(order_lines_csv.iloc[row]['total_amount']) - float(order_lines_csv.iloc[row]['discounted_amount'])
+			total_discount_rate += float(order_lines_csv.iloc[row]['discount_rate'])
 			number_of_discounts += 1
-	return jsonify({'total_num_items': str(total_num_items), 'total number of customers who ordered': len(unique_customers_set), 'Total discount': total_discount, 'Average discount': total_discount/number_of_discounts}), 200
+	return jsonify({'total_num_items': str(total_num_items), 'total number of customers who ordered': len(unique_customers_set), 'Total discount': total_discount, 'Average discount': total_discount_rate/number_of_discounts}), 200
 
 if __name__ == '__main__':
     app.run(debug=True)
