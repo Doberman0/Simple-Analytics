@@ -35,6 +35,8 @@ def calculateAverageOrderTotalForDay(orders_in_a_day: Dict[str, List[float]]) ->
 	{order_id: [total amount everything in that order]}
 	'''
 	average_totals = [sum(orders_in_a_day[order_id])/len(orders_in_a_day[order_id]) for order_id in orders_in_a_day]
+	if len(average_totals) == 0: # Preventing divide-by-zero error
+		return 0
 	return sum(average_totals)/len(average_totals)
 
 def getProductIdsOnPromotion(date:str) -> Set[float]:
@@ -142,13 +144,24 @@ def controller():
 	for order_id in total_promotional_amount:
 		total_promotional_commission += commission_rates[orders_vendors[order_id] - 1] * total_promotional_amount[order_id] 
 
+	# Edge cases - preventing divide by zero errors
+	if len(orders_in_a_day) == 0:
+		avg_commission = 0
+	else:
+		avg_commission = total_commission/len(orders_in_a_day)
+
+	if number_of_discounts == 0:
+		avg_discount = 0
+	else:
+		avg_discount = total_discount_rate/number_of_discounts
+
 	response = jsonify({'total_num_items': total_num_items,
 	 'total number of customers who ordered': len(unique_customers_set),
 	 'Total discount': total_discount,
-	 'Average discount': total_discount_rate/number_of_discounts,
+	 'Average discount': avg_discount,
 	 'Average Total in a day': calculateAverageOrderTotalForDay(orders_in_a_day),
 	 'Total commission for the day': total_commission, 
-	 'Average amount of commission for the day': total_commission/len(orders_in_a_day),
+	 'Average amount of commission for the day': avg_commission,
 	 'Total promotional commission': total_promotional_commission})
 	
 	return response, 200
