@@ -40,4 +40,4 @@ Note that if you don't enter a date, the application will default to the current
 
 # Testing
 Run unit tests created using the command:
-> python3 -m unittests tests.tests
+> python3 -m unittest tests.tests

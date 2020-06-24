@@ -155,16 +155,19 @@ def controller():
 	else:
 		avg_discount = total_discount_rate/number_of_discounts
 
-	response = jsonify({'total_num_items': total_num_items,
+	avg_order_total = calculateAverageOrderTotalForDay(orders_in_a_day)
+
+	# Return response with code 200 to indicate success
+	response = jsonify({'total_num_items': round(total_num_items,2),
 	 'total number of customers who ordered': len(unique_customers_set),
-	 'Total discount': total_discount,
-	 'Average discount': avg_discount,
-	 'Average Total in a day': calculateAverageOrderTotalForDay(orders_in_a_day),
-	 'Total commission for the day': total_commission, 
-	 'Average amount of commission for the day': avg_commission,
-	 'Total promotional commission': total_promotional_commission})
+	 'Total discount': round(total_discount,2),
+	 'Average discount': round(avg_discount,2),
+	 'Average Total in a day': round(avg_order_total,2),
+	 'Total commission for the day': round(total_commission,2), 
+	 'Average amount of commission for the day': round(avg_commission, 2),
+	 'Total promotional commission': round(total_promotional_commission,2)})
 	
-	return response, 200
+	return response, 200 
 
 if __name__ == '__main__':
     app.run(debug=True)
