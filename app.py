@@ -6,6 +6,7 @@ import datetime
 import pandas as pd # Using pandas as its efficient
 from typing import List
 from typing import Dict 
+from typing import Set
 
 
 app = Flask(__name__)
@@ -36,6 +37,29 @@ def calculateAverageOrderTotalForDay(orders_in_a_day: Dict[str, List[float]]) ->
 	average_totals = [sum(orders_in_a_day[order_id])/len(orders_in_a_day[order_id]) for order_id in orders_in_a_day]
 	return sum(average_totals)/len(average_totals)
 
+def getProductIdsOnPromotion(date:str) -> Set[float]:
+	# get promotions
+	product_promotion_csv = pd.read_csv('data/product_promotions.csv')
+	product_ids = set()
+	for row in range(product_promotion_csv.shape[0]):
+		if product_promotion_csv.iloc[row]['date'] == date: # Not triggerring
+			#pass
+			product_ids.add(product_promotion_csv.iloc[row]['product_id'])
+	return product_ids
+
+def getCommissionRates(date:str) -> List[float]:
+	'''
+	Gets the commission rates from commissions.csv
+	date is a string in the format: YYYY-MM-DD
+	return value is a list of commissions (a list of floats) where the indicies are vendor_ids
+	'''
+	commissions_csv = pd.read_csv('data/commissions.csv')
+	commission_rates = [0 for _ in range(10)] # index is the vendor_id-1
+	for row in range(commissions_csv.shape[0]):
+		if commissions_csv.iloc[row]['date'] == date:
+			commission_rates[commissions_csv.iloc[row]['vendor_id'] - 1] = commissions_csv.iloc[row]['rate']  
+	return commission_rates
+
 @app.route('/', methods=['GET'])
 def controller():
 	'''
@@ -58,8 +82,12 @@ def controller():
 	number_of_discounts = 0 # same as total number of items ordered
 	total_discount_rate = 0 # Total amount ordered that day (is it per item?)
 	#To calculate the total amount of commission 
-	orders_vendors = {} # Key:order_id, val:[vendor_id]
+	orders_vendors = {} # Key:order_id, val:vendor_id
 	total_commission = 0
+	total_promotional_commission = 0
+
+	# Get the commission rates  
+	commission_rates = getCommissionRates(str(date))
 	
 	# Get all the orders placed that day
 	orders_csv = pd.read_csv('data/orders.csv')
@@ -73,17 +101,12 @@ def controller():
 			else:
 				orders_vendors[orders_csv.iloc[row]['id']] += orders_csv.iloc[row]['vendor_id']
 
-	# Get the commission rates
-	commissions_csv = pd.read_csv('data/commissions.csv')
-	commission_rates = [0 for _ in range(10)] # index is the vendor_id-1
-	for row in range(commissions_csv.shape[0]):
-		if commissions_csv.iloc[row]['date'] == str(date):
-			commission_rates[commissions_csv.iloc[row]['vendor_id'] - 1] = commissions_csv.iloc[row]['rate']  
-
 	# Getting the numbers of items sold that day
 	total_num_items = 0
 	order_lines_csv = pd.read_csv('data/order_lines.csv')
 	orders_in_a_day = {} # Key: order_id, val: list of total orders in the order organising the orders into buckets
+	products_sold_on_promotion = {} # Key: order_id; val: list of total_orders for values which have a promotion on
+	product_ids_on_promotion = getProductIdsOnPromotion(str(date))
 	for row in range(order_lines_csv.shape[0]):
 		order_id = order_lines_csv.iloc[row]['order_id'] 
 		
@@ -101,21 +124,32 @@ def controller():
 			if order_id not in orders_in_a_day:
 				orders_in_a_day[order_id] = row_total_amount
 			else:
-				orders_in_a_day[order_id] = orders_in_a_day[order_id] + row_total_amount
+				orders_in_a_day[order_id] += row_total_amount
+
+			# We gather up the products on promotion
+			if order_lines_csv.iloc[row]['product_id'] in product_ids_on_promotion:
+				if order_id not in products_sold_on_promotion:
+					products_sold_on_promotion[order_id] = row_total_amount
+				else:
+					products_sold_on_promotion[order_id] += row_total_amount
 
 	# Find the total amount of commissions
 	# I assume it's total amount (per order) * commission rate
 	total_amounts = totalOrderForDay(orders_in_a_day)
+	total_promotional_amount = totalOrderForDay(products_sold_on_promotion)
 	for order_id in total_amounts:
 		total_commission += commission_rates[orders_vendors[order_id] - 1] * total_amounts[order_id] 
-	
-	response = jsonify({'total_num_items': str(total_num_items),
+	for order_id in total_promotional_amount:
+		total_promotional_commission += commission_rates[orders_vendors[order_id] - 1] * total_promotional_amount[order_id] 
+
+	response = jsonify({'total_num_items': total_num_items,
 	 'total number of customers who ordered': len(unique_customers_set),
 	 'Total discount': total_discount,
 	 'Average discount': total_discount_rate/number_of_discounts,
 	 'Average Total in a day': calculateAverageOrderTotalForDay(orders_in_a_day),
 	 'Total commission for the day': total_commission, 
-	 'Average amount of commission for the day': total_commission/len(orders_in_a_day)})
+	 'Average amount of commission for the day': total_commission/len(orders_in_a_day),
+	 'Total promotional commission': total_promotional_commission})
 	
 	return response, 200
 
