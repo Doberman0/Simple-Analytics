@@ -4,6 +4,8 @@ from flask import request
 from flask import jsonify
 import datetime
 import pandas as pd # Using pandas as its efficient
+
+# For function type hints
 from typing import List
 from typing import Dict 
 from typing import Set
@@ -32,7 +34,7 @@ def totalOrderForDay(orders_in_a_day: Dict[str, List[float]]) -> float:
 def calculateAverageOrderTotalForDay(orders_in_a_day: Dict[str, List[float]]) -> float:
 	'''
 	orders_in_a_day is a dictionary structured as such: 
-	{order_id: [total amount everything in that order]}
+	returns the following {order_id: [total amount everything in that order]}
 	'''
 	average_totals = [sum(orders_in_a_day[order_id])/len(orders_in_a_day[order_id]) for order_id in orders_in_a_day]
 	if len(average_totals) == 0: # Preventing divide-by-zero error
@@ -40,12 +42,14 @@ def calculateAverageOrderTotalForDay(orders_in_a_day: Dict[str, List[float]]) ->
 	return sum(average_totals)/len(average_totals)
 
 def getProductIdsOnPromotion(date:str) -> Set[float]:
-	# get promotions
+	'''
+	Takes the date in a YYYY-MM-DD format
+	returns a set (so unique collection) of all the products on promotion
+	'''
 	product_promotion_csv = pd.read_csv('data/product_promotions.csv')
 	product_ids = set()
 	for row in range(product_promotion_csv.shape[0]):
-		if product_promotion_csv.iloc[row]['date'] == date: # Not triggerring
-			#pass
+		if product_promotion_csv.iloc[row]['date'] == date: 
 			product_ids.add(product_promotion_csv.iloc[row]['product_id'])
 	return product_ids
 
@@ -65,16 +69,17 @@ def getCommissionRates(date:str) -> List[float]:
 @app.route('/', methods=['GET'])
 def controller():
 	'''
-	This function is a singleton (?) function which gets all the necessary data
+	This function is a singleton function which gets all the necessary data
 	from the CSV files/data given and returns a json object containing all the 
-	necessary information.
+	necessary information. A singleton was used as it we can improve the efficiency
+	of the function by limiting the number of iterations/loops needed
 	'''
 
 	# Parse the date from the url
 	try:
 		date = toDate(request.args.get('date', default = datetime.date.today().isoformat()))
 	except ValueError as ex:
-		return jsonify({'error': str(ex)}), 400   # jsonify, if this is a json api
+		return jsonify({'error': str(ex)}), 400   
 	
 	# Variables to store the necessary information
 	# Using Python's in built types as the CSV files are relatively small
@@ -94,7 +99,8 @@ def controller():
 	# Get all the orders placed that day
 	orders_csv = pd.read_csv('data/orders.csv')
 	for row in range(orders_csv.shape[0]): 
-		if orders_csv.iloc[row]['created_at'][:10] == str(date):
+		orders_date = orders_csv.iloc[row]['created_at'][:10] 
+		if orders_date == str(date):
 			order_ids.add(orders_csv.iloc[row]['id'])
 			unique_customers_set.add(orders_csv.iloc[row]['customer_id'])
 			# To check commissions
@@ -158,6 +164,7 @@ def controller():
 	avg_order_total = calculateAverageOrderTotalForDay(orders_in_a_day)
 
 	# Return response with code 200 to indicate success
+	# Rounded to 2dp because anymore is nonsensical
 	response = jsonify({'total_num_items': round(total_num_items,2),
 	 'total number of customers who ordered': len(unique_customers_set),
 	 'Total discount': round(total_discount,2),
