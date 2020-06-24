@@ -114,7 +114,8 @@ def controller():
 	 'Total discount': total_discount,
 	 'Average discount': total_discount_rate/number_of_discounts,
 	 'Average Total in a day': calculateAverageOrderTotalForDay(orders_in_a_day),
-	 'Total commission for the day': total_commission})
+	 'Total commission for the day': total_commission, 
+	 'Average amount of commission for the day': total_commission/len(orders_in_a_day)})
 	
 	return response, 200
 
